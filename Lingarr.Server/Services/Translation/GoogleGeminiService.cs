@@ -7,6 +7,7 @@ using Lingarr.Server.Exceptions;
 using Lingarr.Server.Interfaces.Services;
 using Lingarr.Server.Models;
 using Lingarr.Server.Models.Integrations.Translation;
+using Lingarr.Server.Services;
 using Lingarr.Server.Services.Translation.Base;
 using Lingarr.Server.Interfaces.Services.Translation;
 using Lingarr.Server.Models.Batch;
@@ -67,11 +68,10 @@ public class GoogleGeminiService : BaseLanguageService, ITranslationService, IBa
                 SettingKeys.Translation.RetryDelay,
                 SettingKeys.Translation.RetryDelayMultiplier
             ]);
-            _apiKey = settings[SettingKeys.Translation.Gemini.ApiKey];
             _model = settings[SettingKeys.Translation.Gemini.Model];
             _contextPromptEnabled = settings[SettingKeys.Translation.AiContextPromptEnabled];
-
-            if (string.IsNullOrEmpty(_model) || string.IsNullOrEmpty(_apiKey))
+ 
+            if (string.IsNullOrEmpty(_model))
             {
                 throw new InvalidOperationException("Gemini API key or model is not configured.");
             }
@@ -132,6 +132,12 @@ public class GoogleGeminiService : BaseLanguageService, ITranslationService, IBa
         {
             try
             {
+                var apiKeySetting = await _settings.GetSetting(SettingKeys.Translation.Gemini.ApiKey);
+                _apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (string.IsNullOrEmpty(_apiKey))
+                {
+                    throw new InvalidOperationException("Gemini API key is not configured.");
+                }
                 return await TranslateWithGeminiApi(text, linked.Token);
             }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -236,10 +242,11 @@ public class GoogleGeminiService : BaseLanguageService, ITranslationService, IBa
     public override async Task<ModelsResponse> GetModels()
     {
         var supportedGenerationMethods = new List<string> { "generateMessage", "generateContent", "generateText" };
-        var apiKey = await _settings.GetSetting(
+        var apiKeySetting = await _settings.GetSetting(
             SettingKeys.Translation.Gemini.ApiKey
         );
-
+        var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+ 
         if (string.IsNullOrEmpty(apiKey))
         {
             return new ModelsResponse
@@ -329,6 +336,12 @@ public class GoogleGeminiService : BaseLanguageService, ITranslationService, IBa
         {
             try
             {
+                var apiKeySetting = await _settings.GetSetting(SettingKeys.Translation.Gemini.ApiKey);
+                _apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (string.IsNullOrEmpty(_apiKey))
+                {
+                    throw new InvalidOperationException("Gemini API key is not configured.");
+                }
                 return await TranslateBatchWithGeminiApi(subtitleBatch, linked.Token);
             }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)

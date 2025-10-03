@@ -6,6 +6,7 @@ using Lingarr.Core.Configuration;
 using Lingarr.Server.Exceptions;
 using Lingarr.Server.Interfaces.Services;
 using Lingarr.Server.Models;
+using Lingarr.Server.Services;
 using Lingarr.Server.Services.Translation.Base;
 using Lingarr.Server.Interfaces.Services.Translation;
 using Lingarr.Server.Models.Batch;
@@ -68,10 +69,9 @@ public class OpenAiService : BaseLanguageService, ITranslationService, IBatchTra
             ]);
 
             _model = settings[SettingKeys.Translation.OpenAi.Model];
-            _apiKey = settings[SettingKeys.Translation.OpenAi.ApiKey];
             _contextPromptEnabled = settings[SettingKeys.Translation.AiContextPromptEnabled];
-
-            if (string.IsNullOrEmpty(_model) || string.IsNullOrEmpty(_apiKey))
+ 
+            if (string.IsNullOrEmpty(_model))
             {
                 throw new InvalidOperationException("OpenAI API key or model is not configured.");
             }
@@ -90,7 +90,6 @@ public class OpenAiService : BaseLanguageService, ITranslationService, IBatchTra
                 ? timeOut
                 : 5;
             _httpClient.Timeout = TimeSpan.FromMinutes(requestTimeout);
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
             _maxRetries = int.TryParse(settings[SettingKeys.Translation.MaxRetries], out var maxRetries) 
@@ -132,6 +131,14 @@ public class OpenAiService : BaseLanguageService, ITranslationService, IBatchTra
         {
             try
             {
+                var apiKeySetting = await _settings.GetSetting(SettingKeys.Translation.OpenAi.ApiKey);
+                var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    throw new InvalidOperationException("OpenAI API key is not configured.");
+                }
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
                 var requestUrl = $"{_endpoint}chat/completions";
                 var requestBody = new Dictionary<string, object>
                 {
@@ -254,6 +261,14 @@ public class OpenAiService : BaseLanguageService, ITranslationService, IBatchTra
         {
             try
             {
+                var apiKeySetting = await _settings.GetSetting(SettingKeys.Translation.OpenAi.ApiKey);
+                var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    throw new InvalidOperationException("OpenAI API key is not configured.");
+                }
+                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
                 return await TranslateBatchWithOpenAiApi(subtitleBatch, linked.Token);
             }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -407,10 +422,11 @@ public class OpenAiService : BaseLanguageService, ITranslationService, IBatchTra
     /// <inheritdoc />
     public override async Task<ModelsResponse> GetModels()
     {
-        var apiKey = await _settings.GetSetting(
+        var apiKeySetting = await _settings.GetSetting(
             SettingKeys.Translation.OpenAi.ApiKey
         );
-
+        var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+ 
         if (string.IsNullOrEmpty(apiKey))
         {
             return new ModelsResponse

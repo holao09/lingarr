@@ -5,6 +5,7 @@ using Lingarr.Core.Configuration;
 using Lingarr.Server.Exceptions;
 using Lingarr.Server.Interfaces.Services;
 using Lingarr.Server.Models;
+using Lingarr.Server.Services;
 using Lingarr.Server.Services.Translation.Base;
 using Lingarr.Server.Interfaces.Services.Translation;
 using Lingarr.Server.Models.Batch;
@@ -67,11 +68,10 @@ public class AnthropicService : BaseLanguageService, ITranslationService, IBatch
                 SettingKeys.Translation.RetryDelayMultiplier
             ]);
             _model = settings[SettingKeys.Translation.Anthropic.Model];
-            _apiKey = settings[SettingKeys.Translation.Anthropic.ApiKey];
             _version = settings[SettingKeys.Translation.Anthropic.Version];
             _contextPromptEnabled = settings[SettingKeys.Translation.AiContextPromptEnabled];
-
-            if (string.IsNullOrEmpty(_model) || string.IsNullOrEmpty(_apiKey) || string.IsNullOrEmpty(_version))
+ 
+            if (string.IsNullOrEmpty(_model) || string.IsNullOrEmpty(_version))
             {
                 throw new InvalidOperationException("Anthropic API key, model or version is not configured.");
             }
@@ -90,7 +90,6 @@ public class AnthropicService : BaseLanguageService, ITranslationService, IBatch
                 ? timeOut
                 : 5;
             _httpClient.Timeout = TimeSpan.FromMinutes(requestTimeout);
-            _httpClient.DefaultRequestHeaders.Add("x-api-key", settings[SettingKeys.Translation.Anthropic.ApiKey]);
             _httpClient.DefaultRequestHeaders.Add("anthropic-version",
                 settings[SettingKeys.Translation.Anthropic.Version]);
 
@@ -133,6 +132,15 @@ public class AnthropicService : BaseLanguageService, ITranslationService, IBatch
         {
             try
             {
+                var apiKeySetting = await _settings.GetSetting(SettingKeys.Translation.Anthropic.ApiKey);
+                var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    throw new InvalidOperationException("Anthropic API key is not configured.");
+                }
+                _httpClient.DefaultRequestHeaders.Remove("x-api-key");
+                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+
                 var requestBody = new Dictionary<string, object>
                 {
                     ["model"] = _model!,
@@ -223,6 +231,15 @@ public class AnthropicService : BaseLanguageService, ITranslationService, IBatch
         {
             try
             {
+                var apiKeySetting = await _settings.GetSetting(SettingKeys.Translation.Anthropic.ApiKey);
+                var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (string.IsNullOrEmpty(apiKey))
+                {
+                    throw new InvalidOperationException("Anthropic API key is not configured.");
+                }
+                _httpClient.DefaultRequestHeaders.Remove("x-api-key");
+                _httpClient.DefaultRequestHeaders.Add("x-api-key", apiKey);
+                
                 return await TranslateBatchWithAnthropicApi(subtitleBatch, linked.Token);
             }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
@@ -401,7 +418,8 @@ public class AnthropicService : BaseLanguageService, ITranslationService, IBatch
             SettingKeys.Translation.Anthropic.Version
         ]);
 
-        if (string.IsNullOrEmpty(settings[SettingKeys.Translation.Anthropic.ApiKey]))
+        var apiKey = ApiKeyManager.GetNextApiKey(settings[SettingKeys.Translation.Anthropic.ApiKey]);
+        if (string.IsNullOrEmpty(apiKey))
         {
             return new ModelsResponse
             {
@@ -422,9 +440,9 @@ public class AnthropicService : BaseLanguageService, ITranslationService, IBatch
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Add("x-api-key", settings[SettingKeys.Translation.Anthropic.ApiKey]);
+            request.Headers.Add("x-api-key", apiKey);
             request.Headers.Add("anthropic-version", settings[SettingKeys.Translation.Anthropic.Version]);
-
+ 
             var response = await _httpClient.SendAsync(request);
 
             if (!response.IsSuccessStatusCode)

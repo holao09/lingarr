@@ -10,6 +10,7 @@
         validation-type="string"
         type="password"
         :label="translate('settings.services.apiKey')"
+        :description="translate('settings.services.apiKeyDescription')"
         :error-message="translate('settings.services.apiKeyError')"
         @update:validation="(val) => (isValid = val)" />
 </template>

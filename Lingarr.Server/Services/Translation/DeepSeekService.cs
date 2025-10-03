@@ -7,6 +7,7 @@ using Lingarr.Server.Interfaces.Services;
 using Lingarr.Server.Models;
 using Lingarr.Server.Models.Integrations.Translation;
 using Lingarr.Server.Services.Translation.Base;
+using Lingarr.Server.Services;
 
 namespace Lingarr.Server.Services.Translation;
 
@@ -55,9 +56,9 @@ public class DeepSeekService : BaseLanguageService
                 SettingKeys.Translation.AiPrompt
             ]);
             _model = settings[SettingKeys.Translation.DeepSeek.Model];
-            _apiKey = settings[SettingKeys.Translation.DeepSeek.ApiKey];
+            _apiKey = ApiKeyManager.GetNextApiKey(settings[SettingKeys.Translation.DeepSeek.ApiKey]);
             _contextPromptEnabled = settings[SettingKeys.Translation.AiContextPromptEnabled];
-
+ 
             if (string.IsNullOrEmpty(_model) || string.IsNullOrEmpty(_apiKey))
             {
                 throw new InvalidOperationException("DeepSeek API key or model is not configured.");
@@ -147,10 +148,11 @@ public class DeepSeekService : BaseLanguageService
     /// <inheritdoc />
     public override async Task<ModelsResponse> GetModels()
     {
-        _apiKey = await _settings.GetSetting(
+        var apiKeySetting = await _settings.GetSetting(
             SettingKeys.Translation.DeepSeek.ApiKey
         );
-
+        _apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+ 
         if (string.IsNullOrEmpty(_apiKey))
         {
             return new ModelsResponse

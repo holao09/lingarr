@@ -5,6 +5,7 @@
         type="password"
         :min-length="1"
         :label="translate('settings.services.apiKey')"
+        :description="translate('settings.services.apiKeyDescription')"
         :error-message="translate('settings.services.apiKeyError')"
         @update:validation="(val) => (isValid = val)" />
     <div v-translate="'settings.services.deeplNotification'" class="pt-2 text-xs" />

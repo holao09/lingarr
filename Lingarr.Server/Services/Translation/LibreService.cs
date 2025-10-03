@@ -7,6 +7,7 @@ using Lingarr.Server.Interfaces.Services;
 using Lingarr.Server.Models;
 using Lingarr.Server.Models.Api;
 using Lingarr.Server.Services.Translation.Base;
+using Lingarr.Server.Services;
 
 namespace Lingarr.Server.Services.Translation;
 
@@ -46,9 +47,10 @@ public class LibreService : BaseLanguageService
                 SettingKeys.Translation.LibreTranslate.ApiKey
             ]);
             _apiUrl = settings[SettingKeys.Translation.LibreTranslate.Url] ?? "http://libretranslate:5000";
-            settings.TryGetValue(SettingKeys.Translation.LibreTranslate.ApiKey, out _apiKey);
+            settings.TryGetValue(SettingKeys.Translation.LibreTranslate.ApiKey, out var apiKeySetting);
+            _apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
+ 
             _initialized = true;
         }
         finally

@@ -10,6 +10,7 @@ using Lingarr.Server.Models.Batch;
 using Lingarr.Server.Models.Batch.Response;
 using Lingarr.Server.Models.Integrations.Translation;
 using Lingarr.Server.Services.Translation.Base;
+using Lingarr.Server.Services;
 
 namespace Lingarr.Server.Services.Translation;
 
@@ -95,10 +96,14 @@ public class LocalAiService : BaseLanguageService, ITranslationService, IBatchTr
             _httpClient.DefaultRequestHeaders.Accept.Clear();
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-            if (settings.TryGetValue(SettingKeys.Translation.LocalAi.ApiKey, out var apiKey) &&
-                !string.IsNullOrEmpty(apiKey))
+            if (settings.TryGetValue(SettingKeys.Translation.LocalAi.ApiKey, out var apiKeySetting) &&
+                !string.IsNullOrEmpty(apiKeySetting))
             {
-                _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                var apiKey = ApiKeyManager.GetNextApiKey(apiKeySetting);
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                }
             }
 
             _maxRetries = int.TryParse(settings[SettingKeys.Translation.MaxRetries], out var maxRetries) 

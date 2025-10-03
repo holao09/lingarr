@@ -3,6 +3,7 @@ using Lingarr.Core.Configuration;
 using Lingarr.Server.Exceptions;
 using Lingarr.Server.Interfaces.Services;
 using Lingarr.Server.Models;
+using Lingarr.Server.Services;
 using Lingarr.Server.Services.Translation.Base;
 using Microsoft.Extensions.Caching.Memory;
 
@@ -40,12 +41,13 @@ public class DeepLService : BaseTranslationService
             await _initLock.WaitAsync();
             if (_initialized) return;
 
-            var authKey = await _settings.GetSetting(SettingKeys.Translation.DeepL.DeeplApiKey);
+            var authKeySetting = await _settings.GetSetting(SettingKeys.Translation.DeepL.DeeplApiKey);
+            var authKey = ApiKeyManager.GetNextApiKey(authKeySetting);
             if (string.IsNullOrWhiteSpace(authKey))
             {
                 throw new InvalidOperationException("DeepL failed, please validate the API key.");
             }
-
+ 
             _translator = new Translator(authKey, new TranslatorOptions
             {
                 MaximumNetworkRetries = 3,
